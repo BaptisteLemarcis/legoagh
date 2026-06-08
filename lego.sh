@@ -60,8 +60,6 @@ set -e -f -u
 # OVH_APPLICATION_SECRET                        API secret.
 # OVH_CONSUMER_KEY                              API consumer key.
 
-LEGO_CMD="${1:-run}"   # default to run if not provided
-
 # Function error_exit is an echo wrapper that writes to stderr and stops the
 # script execution with code 1.
 error_exit() {
@@ -76,13 +74,6 @@ log() {
     if [ "$verbose" -gt '0' ]; then
         echo "$1" 1>&2
     fi
-}
-
-check_cmd() {
-    case "$LEGO_CMD" in
-        run|renew) ;;
-        *) error_exit "Usage: $0 {run|renew}" ;;
-    esac
 }
 
 check_env() {
@@ -263,13 +254,13 @@ download_lego() {
 }
 
 run_lego_cloudflare() {
-    local cmd="$LEGO_CMD"
 
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
         CLOUDFLARE_DNS_API_TOKEN="${CLOUDFLARE_DNS_API_TOKEN}" \
             ./lego \
+            run \
             --accept-tos \
             --server "${SERVER:-}" \
             --eab --kid "${EAB_KID:-}" --hmac "${EAB_HMAC:-}" \
@@ -277,24 +268,22 @@ run_lego_cloudflare() {
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
-            --cert.timeout 600 \
-            "$cmd"
+            --cert.timeout 600
     else
         CLOUDFLARE_DNS_API_TOKEN="${CLOUDFLARE_DNS_API_TOKEN}" \
             ./lego \
+            run \
             --accept-tos \
             --dns cloudflare \
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 run_lego_godaddy() {
-    local cmd="$LEGO_CMD"
 
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
@@ -302,6 +291,7 @@ run_lego_godaddy() {
         GODADDY_API_KEY="${GODADDY_API_KEY}" \
             GODADDY_API_SECRET="${GODADDY_API_SECRET}" \
             ./lego \
+            run \
             --accept-tos \
             --server "${SERVER:-}" \
             --eab --kid "${EAB_KID:-}" --hmac "${EAB_HMAC:-}" \
@@ -309,31 +299,30 @@ run_lego_godaddy() {
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
-            --cert.timeout 600 \
-            "$cmd"
+            --cert.timeout 600
     else
         GODADDY_API_KEY="${GODADDY_API_KEY}" \
             GODADDY_API_SECRET="${GODADDY_API_SECRET}" \
             ./lego \
+            run \
             --accept-tos \
             --dns godaddy \
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 run_lego_digitalocean() {
-    local cmd="$LEGO_CMD"
 
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
         DO_AUTH_TOKEN="${DO_AUTH_TOKEN}" \
             ./lego \
+            run \
             --accept-tos \
             --server "${SERVER:-}" \
             --eab --kid "${EAB_KID:-}" --hmac "${EAB_HMAC:-}" \
@@ -341,30 +330,29 @@ run_lego_digitalocean() {
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
-            --cert.timeout 600 \
-            "$cmd"
+            --cert.timeout 600
     else
         DO_AUTH_TOKEN="${DO_AUTH_TOKEN}" \
             ./lego \
+            run \
             --accept-tos \
             --dns digitalocean \
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 run_lego_dreamhost() {
-    local cmd="$LEGO_CMD"
 
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
         DREAMHOST_API_KEY="${DREAMHOST_API_KEY}" \
             ./lego \
+            run \
             --accept-tos \
             --server "${SERVER:-}" \
             --eab --kid "${EAB_KID:-}" --hmac "${EAB_HMAC:-}" \
@@ -372,31 +360,30 @@ run_lego_dreamhost() {
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
-            --cert.timeout 600 \
-            "$cmd"
+            --cert.timeout 600
     else
         DREAMHOST_API_KEY="${DREAMHOST_API_KEY}" \
             ./lego \
+            run \
             --accept-tos \
             --dns dreamhost \
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 
 run_lego_duckdns() {
-    local cmd="$LEGO_CMD"
 
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
         DUCKDNS_TOKEN="${DUCKDNS_TOKEN}" \
             ./lego \
+            run \
             --accept-tos \
             --server "${SERVER:-}" \
             --eab --kid "${EAB_KID:-}" --hmac "${EAB_HMAC:-}" \
@@ -404,24 +391,22 @@ run_lego_duckdns() {
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
-            --cert.timeout 600 \
-            "$cmd"
+            --cert.timeout 600
     else
         DUCKDNS_TOKEN="${DUCKDNS_TOKEN}" \
             ./lego \
+            run \
             --accept-tos \
             --dns duckdns \
             --domains "${wildcardDomainName}" \
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 run_lego_ovh() {
-    local cmd="$LEGO_CMD"
 
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
@@ -431,24 +416,24 @@ run_lego_ovh() {
             OVH_CONSUMER_KEY="${OVH_CONSUMER_KEY}" \
             OVH_ENDPOINT=ovh-eu \
             ./lego \
+            run \
             --server "${SERVER:-}" \
             --eab --kid "${EAB_KID:-}" --hmac "${EAB_HMAC:-}" \
             --dns ovh \
             --email "${email}" \
             -d "${wildcardDomainName}" \
-            -d "${domainName}" \
-            "$cmd"
+            -d "${domainName}"
     else
         OVH_APPLICATION_KEY="${OVH_APPLICATION_KEY}" \
             OVH_APPLICATION_SECRET="${OVH_APPLICATION_SECRET}" \
             OVH_CONSUMER_KEY="${OVH_CONSUMER_KEY}" \
             OVH_ENDPOINT=ovh-eu \
             ./lego \
+            run \
             --dns ovh \
             --email "${email}" \
             -d "${wildcardDomainName}" \
             -d "${domainName}" \
-            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
@@ -514,8 +499,6 @@ os=''
 domainName=''
 wildcardDomainName=''
 email=''
-
-check_cmd
 
 check_env
 
