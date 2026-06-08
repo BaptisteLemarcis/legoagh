@@ -8,16 +8,16 @@ set -e -f -u
 #
 # DOMAIN_NAME       Main domain name we're obtaining a wildcard certificate for.
 # DNS_PROVIDER      DNS provider lego uses to prove that you're in control of
-# 					the domain. The current version supports the following hosts:
-# 					"cloudflare", "digitalocean", "dreamhost", "duckdns" and "godaddy".
-# EMAIL				Your email address.
+#                                       the domain. The current version supports the following hosts:
+#                                       "cloudflare", "digitalocean", "dreamhost", "duckdns" and "godaddy".
+# EMAIL                         Your email address.
 #
 # CloudFlare
 # ---
 # If you're using CloudFlare, you must specify the API token:
 # https://developers.cloudflare.com/api/tokens/create
 #
-# CLOUDFLARE_DNS_API_TOKEN		Your API token.
+# CLOUDFLARE_DNS_API_TOKEN              Your API token.
 #
 #
 # DigitalOcean
@@ -25,7 +25,7 @@ set -e -f -u
 # If you're using DigitalOcean, you must specify the API token:
 # https://cloud.digitalocean.com/account/api/tokens
 #
-# DO_AUTH_TOKEN		Your API token.
+# DO_AUTH_TOKEN         Your API token.
 #
 #
 # DreamHost
@@ -48,8 +48,19 @@ set -e -f -u
 # If you're using GoDaddy, you must specify the API secret and key. The API
 # credentials can be created here: https://developer.godaddy.com/keys
 #
-# GODADDY_API_KEY				API key.
-# GODADDY_API_SECRET			API secret.
+# GODADDY_API_KEY                               API key.
+# GODADDY_API_SECRET                    API secret.
+#
+#
+# OVH
+# ---
+# If you're using OVH, you must specify the Application secret and key and consumer key.
+#
+# OVH_APPLICATION_KEY                           API key.
+# OVH_APPLICATION_SECRET                        API secret.
+# OVH_CONSUMER_KEY                              API consumer key.
+
+LEGO_CMD="${1:-run}"   # default to run if not provided
 
 # Function error_exit is an echo wrapper that writes to stderr and stops the
 # script execution with code 1.
@@ -67,6 +78,13 @@ log() {
     fi
 }
 
+check_cmd() {
+    case "$LEGO_CMD" in
+        run|renew) ;;
+        *) error_exit "Usage: $0 {run|renew}" ;;
+    esac
+}
+
 check_env() {
     if [ -z "${DOMAIN_NAME+x}" ]; then
         error_exit "DOMAIN_NAME must be specified"
@@ -80,7 +98,7 @@ check_env() {
         error_exit "EMAIL must be specified"
     fi
 
-    if [ "${DNS_PROVIDER}" != 'godaddy' ] && [ "${DNS_PROVIDER}" != 'cloudflare' ] && [ "${DNS_PROVIDER}" != 'digitalocean' ] && [ "${DNS_PROVIDER}" != "dreamhost" ] && [ "${DNS_PROVIDER}" != 'duckdns' ]; then
+    if [ "${DNS_PROVIDER}" != 'godaddy' ] && [ "${DNS_PROVIDER}" != 'cloudflare' ] && [ "${DNS_PROVIDER}" != 'digitalocean' ] && [ "${DNS_PROVIDER}" != "dreamhost" ] && [ "${DNS_PROVIDER}" != 'duckdns' ] && [ "${DNS_PROVIDER}" != 'ovh' ]; then
         error_exit "DNS provider ${DNS_PROVIDER} is not supported"
     fi
 
@@ -110,13 +128,27 @@ check_env() {
         if [ -z "${DREAMHOST_API_KEY+x}" ]; then
             error_exit "DREAMHOST_API_KEY must be specified"
         fi
-    fi	
+    fi
 
     if [ "${DNS_PROVIDER}" = 'duckdns' ]; then
         if [ -z "${DUCKDNS_TOKEN+x}" ]; then
             error_exit "DUCKDNS_TOKEN must be specified"
         fi
-    fi	
+    fi
+
+    if [ "${DNS_PROVIDER}" = 'ovh' ]; then
+        if [ -z "${OVH_APPLICATION_KEY+x}" ]; then
+            error_exit "OVH_APPLICATION_KEY must be specified"
+        fi
+
+        if [ -z "${OVH_APPLICATION_SECRET+x}" ]; then
+            error_exit "OVH_APPLICATION_SECRET must be specified"
+        fi
+
+        if [ -z "${OVH_CONSUMER_KEY+x}" ]; then
+            error_exit "OVH_CONSUMER_KEY must be specified"
+        fi
+    fi
 
 }
 
@@ -213,7 +245,7 @@ download_lego() {
     legoDist="lego.tar.gz"
     etagFile=".lego.etag"
     arch="_${os}_${cpu}.tar"
-    releaseURL=$(curl -s "https://api.github.com/repos/go-acme/lego/releases/latest" | grep "browser_download_url" | grep "${arch}" | grep -o "https://[^\"]*")
+    releaseURL=$(curl -s "https://api.github.com/repos/go-acme/lego/releases/latest" | grep "browser_download_url" | grep "${arch}" | grep -v "sbom" | grep -o "https://[^\"]*")
     
     # If the lego executable doesn't exist then wipe our etags so that it gets re-downloaded
     if [ ! -f lego ]; then
@@ -231,6 +263,8 @@ download_lego() {
 }
 
 run_lego_cloudflare() {
+    local cmd="$LEGO_CMD"
+
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
@@ -244,7 +278,7 @@ run_lego_cloudflare() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run
+            "$cmd"
     else
         CLOUDFLARE_DNS_API_TOKEN="${CLOUDFLARE_DNS_API_TOKEN}" \
             ./lego \
@@ -254,12 +288,14 @@ run_lego_cloudflare() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run \
+            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 run_lego_godaddy() {
+    local cmd="$LEGO_CMD"
+
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
@@ -274,7 +310,7 @@ run_lego_godaddy() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run
+            "$cmd"
     else
         GODADDY_API_KEY="${GODADDY_API_KEY}" \
             GODADDY_API_SECRET="${GODADDY_API_SECRET}" \
@@ -285,12 +321,14 @@ run_lego_godaddy() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run \
+            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 run_lego_digitalocean() {
+    local cmd="$LEGO_CMD"
+
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
@@ -304,7 +342,7 @@ run_lego_digitalocean() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run
+            "$cmd"
     else
         DO_AUTH_TOKEN="${DO_AUTH_TOKEN}" \
             ./lego \
@@ -314,12 +352,14 @@ run_lego_digitalocean() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run \
+            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 run_lego_dreamhost() {
+    local cmd="$LEGO_CMD"
+
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
@@ -333,7 +373,7 @@ run_lego_dreamhost() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run
+            "$cmd"
     else
         DREAMHOST_API_KEY="${DREAMHOST_API_KEY}" \
             ./lego \
@@ -343,13 +383,15 @@ run_lego_dreamhost() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run \
+            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
 
 
 run_lego_duckdns() {
+    local cmd="$LEGO_CMD"
+
     if [ "${SERVER:-}" != "" ] &&
         [ "${EAB_KID:-}" != "" ] &&
         [ "${EAB_HMAC:-}" != "" ]; then
@@ -363,7 +405,7 @@ run_lego_duckdns() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run
+            "$cmd"
     else
         DUCKDNS_TOKEN="${DUCKDNS_TOKEN}" \
             ./lego \
@@ -373,10 +415,44 @@ run_lego_duckdns() {
             --domains "${domainName}" \
             --email "${email}" \
             --cert.timeout 600 \
-            run \
+            "$cmd" \
             --preferred-chain="ISRG Root X1"
     fi
 }
+
+run_lego_ovh() {
+    local cmd="$LEGO_CMD"
+
+    if [ "${SERVER:-}" != "" ] &&
+        [ "${EAB_KID:-}" != "" ] &&
+        [ "${EAB_HMAC:-}" != "" ]; then
+        OVH_APPLICATION_KEY="${OVH_APPLICATION_KEY}" \
+            OVH_APPLICATION_SECRET="${OVH_APPLICATION_SECRET}" \
+            OVH_CONSUMER_KEY="${OVH_CONSUMER_KEY}" \
+            OVH_ENDPOINT=ovh-eu \
+            ./lego \
+            --server "${SERVER:-}" \
+            --eab --kid "${EAB_KID:-}" --hmac "${EAB_HMAC:-}" \
+            --dns ovh \
+            --email "${email}" \
+            -d "${wildcardDomainName}" \
+            -d "${domainName}" \
+            "$cmd"
+    else
+        OVH_APPLICATION_KEY="${OVH_APPLICATION_KEY}" \
+            OVH_APPLICATION_SECRET="${OVH_APPLICATION_SECRET}" \
+            OVH_CONSUMER_KEY="${OVH_CONSUMER_KEY}" \
+            OVH_ENDPOINT=ovh-eu \
+            ./lego \
+            --dns ovh \
+            --email "${email}" \
+            -d "${wildcardDomainName}" \
+            -d "${domainName}" \
+            "$cmd" \
+            --preferred-chain="ISRG Root X1"
+    fi
+}
+
 
 run_lego() {
     domainName="${DOMAIN_NAME}"
@@ -394,16 +470,20 @@ run_lego() {
         ;;
 
     digitalocean)
-    	run_lego_digitalocean
-    	;;
+        run_lego_digitalocean
+        ;;
 
     dreamhost)
         run_lego_dreamhost
         ;;
 
     duckdns)
-    	run_lego_duckdns
-    	;;
+        run_lego_duckdns
+        ;;
+
+    ovh)
+        run_lego_ovh
+        ;;
 
     *)
         error_exit "Unsupported DNS provider ${DNS_PROVIDER}"
@@ -434,6 +514,8 @@ os=''
 domainName=''
 wildcardDomainName=''
 email=''
+
+check_cmd
 
 check_env
 
